@@ -1,7 +1,13 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Trash2, Users, TrendingUp } from "lucide-react";
-import { type Lead, TAG_LABELS, TAG_COLORS } from "@/lib/qualification";
-import { ScoreStars } from "./ScoreStars";
+import { ChevronDown, ChevronUp, Trash2, Users, TrendingUp, Flame } from "lucide-react";
+import {
+  type Lead,
+  TAG_LABELS,
+  TAG_COLORS,
+  TAG_DOT_COLORS,
+  scoreProgressColor,
+  scoreProgressTrackColor,
+} from "@/lib/qualification";
 
 interface LeadsTableProps {
   leads: Lead[];
@@ -23,6 +29,46 @@ function formatTime(date: Date): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function ScoreBar({ score }: { score: number }) {
+  const pct = (score / 5) * 100;
+  const barColor = scoreProgressColor(score);
+  const trackColor = scoreProgressTrackColor(score);
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`flex-1 h-1.5 rounded-full ${trackColor} overflow-hidden`}>
+        <div
+          className={`h-full rounded-full ${barColor} transition-all duration-500`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-xs font-semibold text-zinc-400 tabular-nums w-5 text-right">
+        {score}/5
+      </span>
+    </div>
+  );
+}
+
+function TagBadge({ tag }: { tag: Lead["tag"] }) {
+  const colorClass = TAG_COLORS[tag];
+  const dotColor = TAG_DOT_COLORS[tag];
+  const label = TAG_LABELS[tag];
+  const isHot = tag === "hot_lead";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium leading-none w-fit ${colorClass}`}
+    >
+      {isHot ? (
+        <Flame size={9} className="shrink-0 fill-current" />
+      ) : (
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+      )}
+      {label}
+    </span>
+  );
 }
 
 export function LeadsTable({ leads, onClear }: LeadsTableProps) {
@@ -60,6 +106,7 @@ export function LeadsTable({ leads, onClear }: LeadsTableProps) {
       : "—";
 
   const highQuality = leads.filter((l) => l.score >= 4).length;
+  const hotLeads = leads.filter((l) => l.tag === "hot_lead").length;
 
   if (leads.length === 0) {
     return (
@@ -87,22 +134,30 @@ export function LeadsTable({ leads, onClear }: LeadsTableProps) {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-3">
           <p className="text-xs text-zinc-500 mb-1">Score médio</p>
-          <p className="text-xl font-bold text-zinc-100">
+          <p className="text-lg font-bold text-zinc-100">
             {avgScore}
-            <span className="text-xs text-zinc-500 font-normal"> /5</span>
+            <span className="text-xs text-zinc-600 font-normal"> /5</span>
           </p>
         </div>
         <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-3">
           <div className="flex items-center gap-1 mb-1">
             <TrendingUp size={10} className="text-emerald-400" />
-            <p className="text-xs text-zinc-500">Qualificados</p>
+            <p className="text-xs text-zinc-500">Qualif.</p>
           </div>
-          <p className="text-xl font-bold text-emerald-400">
+          <p className="text-lg font-bold text-emerald-400">
             {highQuality}
-            <span className="text-xs text-zinc-500 font-normal"> leads</span>
+          </p>
+        </div>
+        <div className="rounded-lg bg-zinc-900 border border-red-900/30 p-3">
+          <div className="flex items-center gap-1 mb-1">
+            <Flame size={10} className="text-red-400 fill-current" />
+            <p className="text-xs text-zinc-500">Hot</p>
+          </div>
+          <p className="text-lg font-bold text-red-400">
+            {hotLeads}
           </p>
         </div>
       </div>
@@ -124,23 +179,15 @@ export function LeadsTable({ leads, onClear }: LeadsTableProps) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-800 bg-zinc-900/80">
-              <th className="text-left px-3 py-2.5 text-xs font-medium text-zinc-500">
+              <th className="text-left px-3 py-2.5 text-xs font-medium text-zinc-500 w-[40%]">
                 Lead
               </th>
               <th
-                className="text-left px-3 py-2.5 text-xs font-medium text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors"
+                className="text-left px-3 py-2.5 text-xs font-medium text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors w-[60%]"
                 onClick={() => handleSort("score")}
               >
                 <span className="flex items-center gap-1">
                   Score <SortIcon col="score" />
-                </span>
-              </th>
-              <th
-                className="text-left px-3 py-2.5 text-xs font-medium text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors hidden sm:table-cell"
-                onClick={() => handleSort("budget")}
-              >
-                <span className="flex items-center gap-1">
-                  Orçamento <SortIcon col="budget" />
                 </span>
               </th>
             </tr>
@@ -156,58 +203,45 @@ export function LeadsTable({ leads, onClear }: LeadsTableProps) {
                   className="cursor-pointer hover:bg-zinc-800/30 transition-colors"
                 >
                   <td className="px-3 py-3">
-                    <div>
-                      <p className="text-zinc-200 font-medium text-xs truncate max-w-[120px]">
-                        {lead.name}
-                      </p>
-                      <p className="text-zinc-600 text-xs truncate max-w-[120px]">
-                        {lead.email}
-                      </p>
-                    </div>
+                    <p className="text-zinc-200 font-medium text-xs truncate max-w-[110px]">
+                      {lead.name}
+                    </p>
+                    <p className="text-zinc-600 text-xs truncate max-w-[110px]">
+                      {formatBudget(lead.budget)}
+                    </p>
                   </td>
                   <td className="px-3 py-3">
-                    <div className="flex flex-col gap-1">
-                      <ScoreStars score={lead.score} size="sm" />
-                      <span
-                        className={`inline-flex text-xs px-1.5 py-0.5 rounded border ${TAG_COLORS[lead.tag]} font-medium leading-none w-fit`}
-                      >
-                        {TAG_LABELS[lead.tag]}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3 hidden sm:table-cell">
-                    <div>
-                      <p className="text-zinc-300 text-xs font-medium">
-                        {formatBudget(lead.budget)}
-                      </p>
-                      <p className="text-zinc-600 text-xs">
-                        {formatTime(lead.submittedAt)}
-                      </p>
+                    <div className="flex flex-col gap-1.5">
+                      <ScoreBar score={lead.score} />
+                      <TagBadge tag={lead.tag} />
                     </div>
                   </td>
                 </tr>
                 {expanded === lead.id && (
-                  <tr key={`${lead.id}-expanded`} className="bg-zinc-900/40">
-                    <td colSpan={3} className="px-3 py-3">
+                  <tr key={`${lead.id}-exp`} className="bg-zinc-900/40">
+                    <td colSpan={2} className="px-3 py-3">
                       <div className="space-y-2">
-                        <p className="text-xs font-medium text-zinc-400">
-                          Feedback da IA:
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-zinc-400">
+                            Análise da IA
+                          </p>
+                          <p className="text-xs text-zinc-600">
+                            {formatTime(lead.submittedAt)}
+                          </p>
+                        </div>
                         <p className="text-xs text-zinc-300 leading-relaxed">
                           {lead.feedback}
                         </p>
-                        <div className="h-px bg-zinc-800 my-2" />
-                        <p className="text-xs font-medium text-zinc-400">
-                          Descrição:
+                        <div className="h-px bg-zinc-800 my-1.5" />
+                        <p className="text-xs font-semibold text-zinc-400">
+                          Descrição enviada
                         </p>
-                        <p className="text-xs text-zinc-400 leading-relaxed line-clamp-4">
+                        <p className="text-xs text-zinc-500 leading-relaxed line-clamp-4">
                           {lead.description}
                         </p>
-                        <p className="text-xs text-zinc-600 mt-1">
-                          Orçamento:{" "}
-                          <span className="text-zinc-400 font-medium">
-                            {formatBudget(lead.budget)}
-                          </span>
+                        <p className="text-xs text-zinc-600 pt-0.5">
+                          E-mail:{" "}
+                          <span className="text-zinc-400">{lead.email}</span>
                         </p>
                       </div>
                     </td>

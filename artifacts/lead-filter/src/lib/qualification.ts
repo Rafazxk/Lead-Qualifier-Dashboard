@@ -11,11 +11,11 @@ export interface Lead {
 }
 
 export type LeadTag =
+  | "hot_lead"
   | "highly_qualified"
+  | "needs_review"
   | "curious"
-  | "urgent_return"
-  | "low_budget"
-  | "needs_review";
+  | "low_potential";
 
 interface QualificationResult {
   score: number;
@@ -23,159 +23,112 @@ interface QualificationResult {
   tag: LeadTag;
 }
 
-const HIGH_BUDGET_THRESHOLD = 10000;
-const MID_BUDGET_THRESHOLD = 3000;
-const LOW_BUDGET_THRESHOLD = 500;
-
 const URGENT_KEYWORDS = [
   "urgente",
+  "agora",
+  "prazo curto",
+  "imediatamente",
+  "ontem",
   "urgent",
-  "imediato",
-  "immediate",
-  "prazo",
-  "deadline",
-  "hoje",
-  "amanhã",
-  "semana",
-  "rápido",
-  "logo",
+  "immediately",
   "asap",
-  "quickly",
+  "right now",
 ];
 
-const HIGH_VALUE_KEYWORDS = [
-  "e-commerce",
-  "ecommerce",
-  "plataforma",
-  "platform",
-  "sistema",
-  "system",
-  "aplicativo",
-  "app",
-  "saas",
-  "crm",
-  "erp",
-  "integração",
-  "integration",
-  "api",
-  "dashboard",
-  "automação",
-  "automation",
-  "escala",
-  "scale",
-  "lançamento",
-  "launch",
-];
-
-const LOW_QUALITY_KEYWORDS = [
-  "barato",
-  "cheap",
-  "simples",
-  "simple",
-  "básico",
-  "basic",
-  "landing page",
-  "landing",
-  "blog",
-  "portfólio",
-  "portfolio",
-  "informativo",
-  "informational",
-];
-
-function containsKeywords(text: string, keywords: string[]): boolean {
+function containsUrgency(text: string): boolean {
   const lower = text.toLowerCase();
-  return keywords.some((kw) => lower.includes(kw));
-}
-
-function countKeywordMatches(text: string, keywords: string[]): number {
-  const lower = text.toLowerCase();
-  return keywords.filter((kw) => lower.includes(kw)).length;
+  return URGENT_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
 export function qualifyLead(
   budget: number,
   description: string
 ): QualificationResult {
-  let score = 0;
   const desc = description.trim();
 
-  if (budget >= HIGH_BUDGET_THRESHOLD) {
-    score += 3;
-  } else if (budget >= MID_BUDGET_THRESHOLD) {
-    score += 2;
-  } else if (budget >= LOW_BUDGET_THRESHOLD) {
-    score += 1;
+  // RULE 3 — Filtro de qualidade: orçamento baixo + descrição curta → fixar em 1
+  if (budget < 1000 && desc.length < 20) {
+    return {
+      score: 1,
+      feedback: "Lead com baixo engajamento e orçamento reduzido.",
+      tag: "low_potential",
+    };
   }
 
-  const highMatches = countKeywordMatches(desc, HIGH_VALUE_KEYWORDS);
-  score += Math.min(highMatches, 2);
-
-  const lowMatches = countKeywordMatches(desc, LOW_QUALITY_KEYWORDS);
-  score -= Math.min(lowMatches, 1);
-
-  const descLength = desc.split(/\s+/).filter(Boolean).length;
-  if (descLength >= 50) {
-    score += 1;
-  } else if (descLength >= 20) {
-    score += 0;
-  } else if (descLength < 5) {
-    score -= 1;
+  // RULE 1 — Score base pelo orçamento
+  let score: number;
+  if (budget > 5000) {
+    score = 3;
+  } else if (budget >= 1000) {
+    score = 2;
+  } else {
+    score = 1;
   }
 
-  const isUrgent = containsKeywords(desc, URGENT_KEYWORDS);
+  // RULE 2 — Bônus de urgência: +2 e tag Hot Lead
+  const isUrgent = containsUrgency(desc);
   if (isUrgent) {
-    score += 1;
+    score = Math.min(5, score + 2);
+    return {
+      score,
+      feedback: "Contato urgente detectado. Acione o time de vendas agora.",
+      tag: "hot_lead",
+    };
   }
 
-  score = Math.max(1, Math.min(5, score));
-
+  // Mapeamento de score para feedback e tag
   let feedback: string;
   let tag: LeadTag;
 
-  if (isUrgent && score >= 3) {
-    feedback = "Precisa de retorno urgente";
-    tag = "urgent_return";
-  } else if (score >= 5) {
-    feedback = "Lead altamente qualificado";
-    tag = "highly_qualified";
-  } else if (score === 4) {
-    feedback = "Lead com alto potencial";
+  if (score >= 4) {
+    feedback = "Lead altamente qualificado. Alto potencial de conversão.";
     tag = "highly_qualified";
   } else if (score === 3) {
-    feedback = "Lead promissor, vale acompanhar";
+    feedback = "Lead promissor. Vale agendar uma call de discovery.";
     tag = "needs_review";
   } else if (score === 2) {
-    feedback = "Lead curioso, ainda explorando";
+    feedback = "Lead curioso, ainda explorando opções.";
     tag = "curious";
   } else {
-    feedback = "Lead fora do perfil ideal";
-    tag = "low_budget";
+    feedback = "Lead fora do perfil ideal por ora.";
+    tag = "low_potential";
   }
 
   return { score, feedback, tag };
 }
 
 export const TAG_LABELS: Record<LeadTag, string> = {
+  hot_lead: "Prioridade Máxima (Hot Lead)",
   highly_qualified: "Altamente qualificado",
-  curious: "Lead curioso",
-  urgent_return: "Retorno urgente",
-  low_budget: "Orçamento baixo",
   needs_review: "Requer análise",
+  curious: "Lead curioso",
+  low_potential: "Curioso / Baixo Potencial",
 };
 
 export const TAG_COLORS: Record<LeadTag, string> = {
-  highly_qualified: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-  curious: "text-sky-400 bg-sky-400/10 border-sky-400/20",
-  urgent_return: "text-amber-400 bg-amber-400/10 border-amber-400/20",
-  low_budget: "text-zinc-400 bg-zinc-400/10 border-zinc-400/20",
-  needs_review: "text-violet-400 bg-violet-400/10 border-violet-400/20",
+  hot_lead: "text-red-400 bg-red-500/10 border-red-500/25",
+  highly_qualified: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
+  needs_review: "text-amber-400 bg-amber-500/10 border-amber-500/25",
+  curious: "text-sky-400 bg-sky-500/10 border-sky-500/25",
+  low_potential: "text-zinc-400 bg-zinc-500/10 border-zinc-500/25",
 };
 
-export const SCORE_COLORS: Record<number, string> = {
-  1: "text-zinc-400",
-  2: "text-sky-400",
-  3: "text-violet-400",
-  4: "text-amber-400",
-  5: "text-emerald-400",
+export const TAG_DOT_COLORS: Record<LeadTag, string> = {
+  hot_lead: "bg-red-500",
+  highly_qualified: "bg-emerald-500",
+  needs_review: "bg-amber-500",
+  curious: "bg-sky-500",
+  low_potential: "bg-zinc-500",
 };
+
+export function scoreProgressColor(score: number): string {
+  if (score >= 4) return "bg-emerald-500";
+  if (score === 3) return "bg-amber-500";
+  return "bg-zinc-500";
+}
+
+export function scoreProgressTrackColor(score: number): string {
+  if (score >= 4) return "bg-emerald-500/15";
+  if (score === 3) return "bg-amber-500/15";
+  return "bg-zinc-500/15";
+}
