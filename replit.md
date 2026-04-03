@@ -16,6 +16,19 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
+## Artifacts
+
+### LeadFilter (`artifacts/lead-filter`)
+- **Type**: React + Vite web app
+- **Preview path**: `/`
+- **Description**: Dashboard de qualificação de leads com IA simulada (client-side).
+- **Features**:
+  - Formulário: Nome, E-mail, Orçamento (R$), Descrição do projeto
+  - Motor de qualificação em `src/lib/qualification.ts` — calcula Score 1–5 e feedback baseado em orçamento, palavras-chave e urgência
+  - Tabela lateral com leads qualificados, score estrelas, tags coloridas, e detalhes expansíveis
+  - Design dark estilo security dashboard, responsivo
+  - Ícones Lucide React, validação Zod + react-hook-form
+
 ## Key Commands
 
 - `pnpm run typecheck` — full typecheck across all packages
